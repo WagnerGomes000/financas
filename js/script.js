@@ -133,15 +133,17 @@ document.getElementById('form-transacao').onsubmit = function(e) {
 function carregarTransacoes() {
     fetch('api/listar_transacoes.php')
     .then(response => response.json())
-    .then(data => {
+    .then((data) => {
         atualizarResumo(data.resumo);
         atualizarListaTransacoes(data.transacoes);
         atualizarBarraExperiencia(data.transacoes); // Atualiza barra XP
     });
 }
 
-function carregarCategorias(tipo) {
-    const select = document.getElementById('categoria');
+function carregarCategorias(tipo, selectId = 'categoria') {
+    const select = document.getElementById(selectId);
+    if (!select) return; // Se o elemento não existir, sai da função
+    
     select.innerHTML = '<option value="">Carregando categorias...</option>';
     select.disabled = true;
 
@@ -197,6 +199,15 @@ function formatarMoeda(valor) {
     return 'R$ ' + Number(valor).toFixed(2).replace('.', ',');
 }
 
+function formatarData(data) {
+    const dt = new Date(data);
+    return dt.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
+}
+
 function confirmarLimparDados() {
     if (confirm('Tem certeza que deseja limpar todos os dados? Esta ação não pode ser desfeita.')) {
         fetch('api/limpar_dados.php', {
@@ -234,79 +245,153 @@ function confirmarLimparDados() {
 }
 
 // Função para calcular e atualizar a barra de experiência
-function atualizarBarraExperiencia(transacoes) {
-    // Agrupa entradas e saídas por data
-    const economiaPorDia = {};
-    transacoes.forEach(t => {
-        const data = t.data;
-        if (!economiaPorDia[data]) economiaPorDia[data] = 0;
-        if (t.tipo === 'entrada') economiaPorDia[data] += Number(t.valor);
-        if (t.tipo === 'saida') economiaPorDia[data] -= Number(t.valor);
-    });
-    // Considera apenas o dia atual
-    const hoje = new Date().toISOString().slice(0, 10);
-    const economiaHoje = economiaPorDia[hoje] || 0;
-    // Para cada R$ 20 economizados, aumenta a barra
-    let progresso = Math.min(100, Math.floor((economiaHoje / 20) * 20));
-    if (progresso < 0) progresso = 0;
-    // Atualiza barra
-    const xpBar = document.getElementById('xp-bar-fill');
-    const xpLabel = document.getElementById('xp-bar-label');
-    if (xpBar && xpLabel) {
-        xpBar.style.width = progresso + '%';
-        xpLabel.textContent = progresso + '%';
-    }
-    // Exibe medalha se completou 100%
-    const medal = document.getElementById('user-medal');
-    if (medal) {
-        if (progresso >= 100) {
-            medal.style.display = 'inline-block';
-        } else {
-            medal.style.display = 'none';
+async function atualizarBarraExperiencia(transacoes) {
+    try {
+        // Recupera o nível atual e XP do localStorage
+        let nivel = parseInt(localStorage.getItem('userLevel')) || 1;
+        let xpAcumulado = parseInt(localStorage.getItem('userXP')) || 0;
+        
+        // Verifica se é primeiro acesso (usuário novo)
+        const xpInicial = localStorage.getItem('xpInicial');
+        if (xpInicial && !localStorage.getItem('xpInicialAplicado')) {
+            xpAcumulado = parseInt(xpInicial);
+            localStorage.setItem('xpInicialAplicado', 'true');
         }
+        
+        // Agrupa transações por semana
+        const economiaPorSemana = {};
+        const hoje = new Date();
+        transacoes.forEach(t => {
+            const data = new Date(t.data);
+            const semana = getWeekNumber(data);
+            if (!economiaPorSemana[semana]) economiaPorSemana[semana] = 0;
+            if (t.tipo === 'entrada') economiaPorSemana[semana] += Number(t.valor);
+            if (t.tipo === 'saida') economiaPorSemana[semana] -= Number(t.valor);
+        });
+        
+        // Verifica semanas consecutivas e XP semanal
+        const semanaAtual = getWeekNumber(hoje);
+        const economiaDestaSemana = economiaPorSemana[semanaAtual] || 0;
+        const ultimaSemanaComEconomia = localStorage.getItem('ultimaSemanaEconomia');
+        const semanasConsecutivas = parseInt(localStorage.getItem('semanasConsecutivas')) || 0;
+        
+        if (ultimaSemanaComEconomia) {
+            const ultimaSemana = parseInt(ultimaSemanaComEconomia);
+            if (ultimaSemana < semanaAtual - 1) {
+                // Zera o XP e as semanas consecutivas se passou uma semana sem economizar
+                xpAcumulado = 0;
+                localStorage.setItem('semanasConsecutivas', '0');
+                mostrarMensagemPenalidade();
+            } else if (ultimaSemana === semanaAtual - 1 && economiaDestaSemana > 0) {
+                // Incrementa semanas consecutivas se economizou na semana anterior e atual
+                const novasSemanasConsecutivas = semanasConsecutivas + 1;
+                localStorage.setItem('semanasConsecutivas', novasSemanasConsecutivas.toString());
+            }
+        }
+
+        try {
+            // Busca meta atual do usuário
+            const response = await fetch('api/listar_metas.php');
+            const data = await response.json();
+            
+            if (data.sucesso && data.metas.length > 0) {
+                const metaAtual = data.metas[0];
+                  if (economiaDestaSemana > 0) {
+                    // 10% do valor economizado em relação à meta vira XP
+                    const percentualMeta = (economiaDestaSemana / metaAtual.valor_economia) * 100;
+                    const xpMeta = Math.floor(percentualMeta * 0.1 * 100);
+                    
+                    // Bônus semanal fixo por economizar
+                    const xpSemanal = 50;
+                    
+                    // Adiciona XP total
+                    xpAcumulado += (xpMeta + xpSemanal);
+                    
+                    // Atualiza última semana com economia
+                    localStorage.setItem('ultimaSemanaEconomia', semanaAtual.toString());
+                }
+            }
+            
+            // XP necessário aumenta a cada nível
+            const xpNecessario = 100 * Math.pow(1.5, nivel - 1);
+            
+            // Verifica se subiu de nível
+            while (xpAcumulado >= xpNecessario) {
+                xpAcumulado -= xpNecessario;
+                nivel++;
+                mostrarMensagemNivel(nivel);
+            }
+            
+            // Calcula o progresso em porcentagem
+            const progresso = Math.min(100, Math.floor((xpAcumulado / xpNecessario) * 100));
+            
+            // Atualiza barra
+            const xpBar = document.getElementById('xp-bar-fill');
+            const xpLabel = document.getElementById('xp-bar-label');
+            if (xpBar && xpLabel) {
+                xpBar.style.width = progresso + '%';
+                xpLabel.textContent = `Nível ${nivel} - ${progresso}%`;
+            }
+            
+            // Atualiza medalha com o nível atual
+            const medal = document.getElementById('user-medal');
+            if (medal) {
+                medal.style.display = 'inline-block';
+                medal.textContent = `🏆 ${nivel}`;
+                medal.style.fontSize = '1.2em';
+            }
+            
+            // Salva progresso
+            localStorage.setItem('userLevel', nivel);
+            localStorage.setItem('userXP', xpAcumulado);
+            
+        } catch (error) {
+            console.error('Erro ao atualizar XP:', error);
+        }
+        
+    } catch (error) {
+        console.error('Erro ao processar barra de XP:', error);
     }
 }
 
-// Função para atualizar a foto do usuário na NavBar
-const userPhotoInput = document.getElementById('user-photo');
-const userPhotoPreview = document.getElementById('user-photo-preview');
+function mostrarMensagemNivel(nivel) {
+    const mensagem = document.createElement('div');
+    mensagem.className = 'level-up-message';
+    mensagem.innerHTML = `
+        <div class="level-up-content">
+            <div class="level-up-icon">🎉</div>
+            <div class="level-up-text">
+                <h3>Nível ${nivel} Alcançado!</h3>
+                <p>Continue economizando para subir mais níveis!</p>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(mensagem);
+    
+    // Remove a mensagem após 3 segundos
+    setTimeout(() => {
+        mensagem.classList.add('level-up-hide');
+        setTimeout(() => mensagem.remove(), 500);
+    }, 3000);
+}
+
 const userNameInput = document.getElementById('user-name');
 let userNameSpan;
 
-// Restaurar nome e imagem do localStorage
-const savedName = localStorage.getItem('userName');
-const savedPhoto = localStorage.getItem('userPhoto');
+// Configurar nome do usuário
 if (userNameInput) {
-    // Cria o span para exibir o nome
     userNameSpan = document.createElement('span');
     userNameSpan.id = 'user-name-span';
     userNameSpan.style.display = 'none';
     userNameSpan.style.cursor = 'pointer';
     userNameInput.parentNode.appendChild(userNameSpan);
 
+    const savedName = userNameInput.value;
     if (savedName) {
-        userNameInput.value = savedName;
         userNameSpan.textContent = savedName;
         userNameInput.style.display = 'none';
         userNameSpan.style.display = 'inline-block';
     }
-}
-if (userPhotoPreview && savedPhoto) {
-    userPhotoPreview.src = savedPhoto;
-}
-
-if (userPhotoInput && userPhotoPreview) {
-    userPhotoInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                userPhotoPreview.src = evt.target.result;
-                localStorage.setItem('userPhoto', evt.target.result);
-            };
-            reader.readAsDataURL(file);
-        }
-    });
 }
 
 // Lógica para esconder a TextBox e mostrar o nome
@@ -378,14 +463,26 @@ function atualizarDashboard() {    fetch('api/dados_dashboard.php')
         .then(data => {
             if (data.sucesso) {
                 // Atualizar gráfico de categorias
-                graficoCategoria.data.labels = data.gastosPorCategoria.map(item => item.nome);
-                graficoCategoria.data.datasets[0].data = data.gastosPorCategoria.map(item => item.total);
-                graficoCategoria.update();
+                const temDadosCategorias = data.gastosPorCategoria && data.gastosPorCategoria.length > 0;
+                document.getElementById('no-data-categorias').style.display = temDadosCategorias ? 'none' : 'flex';
+                document.getElementById('grafico-categorias').style.display = temDadosCategorias ? 'block' : 'none';
+                
+                if (temDadosCategorias) {
+                    graficoCategoria.data.labels = data.gastosPorCategoria.map(item => item.nome);
+                    graficoCategoria.data.datasets[0].data = data.gastosPorCategoria.map(item => item.total);
+                    graficoCategoria.update();
+                }
 
                 // Atualizar gráfico de evolução
-                graficoEvolucao.data.labels = data.evolucaoSaldo.map(item => item.dia);
-                graficoEvolucao.data.datasets[0].data = data.evolucaoSaldo.map(item => item.saldo_dia);
-                graficoEvolucao.update();
+                const temDadosEvolucao = data.evolucaoSaldo && data.evolucaoSaldo.length > 0;
+                document.getElementById('no-data-evolucao').style.display = temDadosEvolucao ? 'none' : 'flex';
+                document.getElementById('grafico-evolucao').style.display = temDadosEvolucao ? 'block' : 'none';
+                
+                if (temDadosEvolucao) {
+                    graficoEvolucao.data.labels = data.evolucaoSaldo.map(item => item.dia);
+                    graficoEvolucao.data.datasets[0].data = data.evolucaoSaldo.map(item => item.saldo_dia);
+                    graficoEvolucao.update();
+                }
             }
         });
 }
@@ -393,8 +490,8 @@ function atualizarDashboard() {    fetch('api/dados_dashboard.php')
 document.getElementById('form-meta').onsubmit = function(e) {
     e.preventDefault();
     const dados = {
-        categoria_id: document.getElementById('categoria-meta').value,
-        valor_limite: document.getElementById('valor-limite').value,
+        valor_economia: document.getElementById('valor-economia').value,
+        objetivo: document.getElementById('objetivo-meta').value,
         mes_referencia: document.getElementById('mes-referencia').value + '-01'
     };
 
@@ -449,17 +546,49 @@ function carregarMetas() {
                 const listaMetas = document.getElementById('lista-metas');
                 listaMetas.innerHTML = '';
                 
+                if (data.metas.length === 0) {
+                    listaMetas.innerHTML = `
+                        <div class="no-metas-message">
+                            <i class="fas fa-piggy-bank"></i>
+                            <p>Você ainda não possui metas mensais...</p>
+                            <p>Que tal criar uma meta de economia? Isso vai te ajudar a alcançar seus objetivos financeiros! 🎯</p>
+                            <button onclick="abrirModalMeta()" class="btn-criar-meta">
+                                Criar Minha Primeira Meta
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
+                
                 data.metas.forEach(meta => {
-                    const progresso = meta.valor_atual ? (meta.valor_atual / meta.valor_limite * 100) : 0;
-                    const progressoClass = progresso >= 80 ? 'progress-danger' : 
-                                        progresso >= 60 ? 'progress-warning' : '';
+                    const economiaMes = meta.valor_atual || 0;
+                    const progresso = (economiaMes / meta.valor_economia) * 100;
+                    
+                    // Classes para o progresso baseadas na economia
+                    let progressoClass, statusText;
+                    if (progresso >= 100) {
+                        progressoClass = 'progress-success';
+                        statusText = 'Meta atingida! 🎉';
+                    } else if (progresso >= 70) {
+                        progressoClass = 'progress-warning';
+                        statusText = 'Quase lá!';
+                    } else {
+                        progressoClass = '';
+                        statusText = 'Em progresso';
+                    }
                     
                     listaMetas.innerHTML += `
                         <div class="meta-item">
-                            <div>
-                                <strong>${meta.categoria_nome}</strong>
-                                <div>Meta: ${formatarMoeda(meta.valor_limite)}</div>
-                                <div>Atual: ${formatarMoeda(meta.valor_atual || 0)}</div>
+                            <div class="meta-header">
+                                <strong>${meta.objetivo}</strong>
+                                <span class="meta-status">${statusText}</span>
+                            </div>
+                            <div class="meta-info">
+                                <div class="meta-mes">${formatarDataMes(meta.mes_referencia)}</div>
+                                <div class="meta-valores">
+                                    <div>Meta: ${formatarMoeda(meta.valor_economia)}</div>
+                                    <div>Economizado: ${formatarMoeda(economiaMes)}</div>
+                                </div>
                             </div>
                             <div class="progress-bar">
                                 <div class="progress-fill ${progressoClass}" 
@@ -477,6 +606,11 @@ function carregarDespesasRecorrentes() {
         .then(response => response.json())
         .then(data => {
             if (data.sucesso) {
+                // Atualizar totais
+                document.getElementById('totalDespesasRecorrentes').textContent = formatarMoeda(data.totalDespesasRecorrentes);
+                document.getElementById('totalSaidasMes').textContent = formatarMoeda(data.totalSaidasMes);
+                
+                // Atualizar lista de despesas recorrentes
                 const listaDespesas = document.getElementById('lista-despesas');
                 listaDespesas.innerHTML = '';
                 
@@ -494,15 +628,30 @@ function carregarDespesasRecorrentes() {
                     }
                     
                     listaDespesas.innerHTML += `
-                        <div class="despesa-item ${statusClass}">
-                            <div>
+                        <div class="lista-item ${statusClass}">
+                            <div class="detalhes">
                                 <strong>${despesa.descricao}</strong>
                                 <div>Categoria: ${despesa.categoria_nome}</div>
-                                <div>Valor: ${formatarMoeda(despesa.valor)}</div>
+                                <div class="vencimento">Vencimento: Dia ${despesa.dia_vencimento}</div>
                             </div>
-                            <div>
-                                <div class="vencimento">Dia ${despesa.dia_vencimento}</div>
+                            <div class="valor">${formatarMoeda(despesa.valor)}</div>
+                        </div>
+                    `;
+                });
+                
+                // Atualizar lista de saídas
+                const listaSaidas = document.getElementById('lista-saidas');
+                listaSaidas.innerHTML = '';
+                
+                data.saidas.forEach(saida => {
+                    listaSaidas.innerHTML += `
+                        <div class="lista-item">
+                            <div class="detalhes">
+                                <strong>${saida.descricao}</strong>
+                                <div>Categoria: ${saida.categoria_nome}</div>
+                                <div class="data">${formatarData(saida.data)}</div>
                             </div>
+                            <div class="valor">${formatarMoeda(saida.valor)}</div>
                         </div>
                     `;
                 });
@@ -528,6 +677,13 @@ function setupNavigation() {
                 if (page.dataset.page === targetPage) {
                     page.style.display = 'block';
                     if (targetPage === 'dashboard') {
+                        // Limpar os gráficos antes de atualizar
+                        if (graficoCategoria) {
+                            graficoCategoria.clear();
+                        }
+                        if (graficoEvolucao) {
+                            graficoEvolucao.clear();
+                        }
                         atualizarDashboard();
                     }
                 } else {
@@ -536,4 +692,33 @@ function setupNavigation() {
             });
         });
     });
+}
+
+// Função para obter o número da semana de uma data
+function getWeekNumber(d) {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+}
+
+// Função para mostrar mensagem de penalidade
+function mostrarMensagemPenalidade() {
+    const mensagem = document.createElement('div');
+    mensagem.className = 'level-up-message penalty';
+    mensagem.innerHTML = `
+        <div class="level-up-content">
+            <div class="level-up-icon">⚠️</div>
+            <div class="level-up-text">
+                <h3>Experiência Zerada!</h3>
+                <p>Você ficou uma semana sem economizar. Continue economizando para recuperar seu progresso!</p>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(mensagem);
+    
+    setTimeout(() => {
+        mensagem.classList.add('level-up-hide');
+        setTimeout(() => mensagem.remove(), 500);
+    }, 3000);
 }

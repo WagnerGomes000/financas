@@ -36,16 +36,9 @@ body {
     margin-bottom: 12px;
 }
 
-.user-photo-label img {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 2px solid white;
-    background: #fff;
-    object-fit: cover;
-}
-
 .user-info {
+    display: flex;
+    align-items: center;
     flex: 1;
 }
 
@@ -287,10 +280,22 @@ body {
 }
 
 .modal input:focus,
-.modal select:focus {
+.modal select:focus,
+.modal textarea:focus {
     outline: none;
     border-color: #2a5298;
     background: white;
+}
+
+.modal textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1em;
+    background: #f8f9fa;
+    min-height: 100px;
+    resize: vertical;
 }
 
 .modal .btn-salvar {
@@ -382,7 +387,6 @@ body {
 .auth-container {
     width: 100%;
     max-width: 400px;
-    position: relative;
 }
 
 .auth-box {
@@ -398,6 +402,7 @@ body {
 }
 
 .auth-header h1 {
+    font-size: 2em;
     color: #2c3e50;
     margin-bottom: 10px;
 }
@@ -406,8 +411,14 @@ body {
     color: #7f8c8d;
 }
 
-.auth-form .form-group {
-    margin-bottom: 20px;
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.form-group {
+    position: relative;
 }
 
 .auth-form input {
@@ -420,15 +431,14 @@ body {
 }
 
 .auth-form input:focus {
-    border-color: #2a5298;
     outline: none;
+    border-color: #2a5298;
 }
 
 .btn-auth {
-    width: 100%;
-    padding: 14px;
     background: #2a5298;
     color: white;
+    padding: 12px;
     border: none;
     border-radius: 8px;
     font-size: 1em;
@@ -455,4 +465,307 @@ body {
 
 .auth-link a:hover {
     text-decoration: underline;
+}
+
+.btn-logout {
+    color: white;
+    text-decoration: none;
+    padding: 8px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s;
+    margin-left: 10px;
+}
+
+.btn-logout:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Mensagem de sem dados */
+.no-data-message, .no-metas-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    color: #95a5a6;
+    text-align: center;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.no-data-message i, .no-metas-message i {
+    font-size: 3em;
+    margin-bottom: 16px;
+    opacity: 0.8;
+    color: #2a5298;
+}
+
+.no-data-message p, .no-metas-message p {
+    font-size: 1.1em;
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.btn-criar-meta {
+    margin-top: 20px;
+    background: #2a5298;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background 0.3s, transform 0.2s;
+}
+
+.btn-criar-meta:hover {
+    background: #1e3c72;
+    transform: translateY(-1px);
+}
+
+.grafico-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    margin-bottom: 16px;
+}
+
+/* Estilos Grid para os gráficos */
+.graficos {
+    display: grid;
+    gap: 16px;
+}
+
+@media (min-width: 768px) {
+    .graficos {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Estilos para página de despesas */
+.resumo-despesas {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.secao-despesas {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.secao-despesas h3 {
+    color: #2c3e50;
+    margin-bottom: 16px;
+    font-size: 1.1em;
+}
+
+.lista-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 12px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.lista-item:last-child {
+    border-bottom: none;
+}
+
+.lista-item .detalhes {
+    flex: 1;
+}
+
+.lista-item .valor {
+    color: #c0392b;
+    font-weight: 500;
+}
+
+.lista-item .data {
+    color: #7f8c8d;
+    font-size: 0.9em;
+    margin-top: 4px;
+}
+
+/* Estilos para metas de economia */
+.meta-item {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.meta-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.meta-header strong {
+    font-size: 1.1em;
+    color: #2c3e50;
+}
+
+.meta-mes {
+    color: #7f8c8d;
+    font-size: 0.9em;
+}
+
+.meta-valores {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    color: #7f8c8d;
+    font-size: 0.95em;
+}
+
+.progress-bar {
+    height: 8px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #3498db;
+    transition: width 0.3s;
+}
+
+.progress-fill.progress-success {
+    background: #2ecc71;
+}
+
+.progress-fill.progress-warning {
+    background: #f1c40f;
+}
+
+.meta-status {
+    font-size: 0.85em;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: #f8f9fa;
+    color: #7f8c8d;
+}
+
+/* Estilo para medalha de nível */
+#user-medal {
+    background: linear-gradient(135deg, #ffd700 0%, #ffcc00 100%);
+    color: #2c3e50;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+#user-medal:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+/* Mensagem de nível alcançado */
+.level-up-message {
+    position: fixed;
+    top: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2000;
+    animation: levelUpShow 0.5s ease-out;
+}
+
+.level-up-content {
+    background: linear-gradient(135deg, #2a5298 0%, #1e3c72 100%);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    color: white;
+    min-width: 300px;
+}
+
+.level-up-icon {
+    font-size: 2.5em;
+    animation: levelUpBounce 0.5s ease infinite;
+}
+
+.level-up-text h3 {
+    margin: 0;
+    font-size: 1.2em;
+    color: white;
+}
+
+.level-up-text p {
+    margin: 4px 0 0;
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
+.level-up-hide {
+    animation: levelUpHide 0.5s ease-in forwards;
+}
+
+@keyframes levelUpShow {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -20px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+@keyframes levelUpHide {
+    from {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+    to {
+        opacity: 0;
+        transform: translate(-50%, -20px);
+    }
+}
+
+@keyframes levelUpBounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+/* Mensagem de penalidade */
+.level-up-message.penalty .level-up-content {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+}
+
+.level-up-message.penalty .level-up-icon {
+    animation: penaltyShake 0.5s ease infinite;
+}
+
+@keyframes penaltyShake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-3px);
+    }
+    75% {
+        transform: translateX(3px);
+    }
 }

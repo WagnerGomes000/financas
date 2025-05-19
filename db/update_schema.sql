@@ -1,10 +1,11 @@
 -- Tabela para metas mensais
 CREATE TABLE metas (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    categoria_id INT,
-    valor_limite DECIMAL(10,2) NOT NULL,
+    valor_economia DECIMAL(10,2) NOT NULL,
+    objetivo TEXT,
     mes_referencia DATE NOT NULL,
-    FOREIGN KEY (categoria_id) REFERENCES categorias(id)
+    usuario_id INT,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );
 
 -- Tabela para despesas recorrentes

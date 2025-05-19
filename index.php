@@ -1,3 +1,6 @@
+<?php
+require_once 'auth_check.php';
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -11,16 +14,14 @@
 <body>
     <div class="app-container">
         <!-- Cabeçalho com perfil -->
-        <header class="app-header">
-            <div class="user-profile">
-                <label for="user-photo" class="user-photo-label">
-                    <img id="user-photo-preview" src="https://via.placeholder.com/40" alt="Foto do usuário" />
-                    <input type="file" id="user-photo" accept="image/*" style="display:none;" />
-                </label>
+        <header class="app-header">            <div class="user-profile">
                 <div class="user-info">
-                    <input type="text" id="user-name" placeholder="Seu nome" />
+                    <input type="text" id="user-name" placeholder="Seu nome" value="<?php echo htmlspecialchars($_SESSION['usuario_nome']); ?>" />
                     <span id="user-name-span" style="display:none;"></span>
                     <span id="user-medal" style="display:none;">🏅</span>
+                    <a href="logout.php" class="btn-logout" title="Sair">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </a>
                 </div>
             </div>
             <div class="xp-bar-container">
@@ -71,10 +72,18 @@
                 <div class="graficos">
                     <div class="grafico-card">
                         <h3>Gastos por Categoria</h3>
+                        <div class="no-data-message" id="no-data-categorias" style="display: none;">
+                            <i class="fas fa-chart-pie"></i>
+                            <p>Nenhum gasto registrado nos últimos 30 dias</p>
+                        </div>
                         <canvas id="grafico-categorias"></canvas>
                     </div>
                     <div class="grafico-card">
                         <h3>Evolução do Saldo</h3>
+                        <div class="no-data-message" id="no-data-evolucao" style="display: none;">
+                            <i class="fas fa-chart-line"></i>
+                            <p>Nenhuma transação registrada nos últimos 30 dias</p>
+                        </div>
                         <canvas id="grafico-evolucao"></canvas>
                     </div>
                 </div>
@@ -88,16 +97,31 @@
                     </button>
                 </div>
                 <div id="lista-metas"></div>
-            </div>
-
-            <div class="page" id="page-recurring" data-page="recurring" style="display:none;">
+            </div>            <div class="page" id="page-recurring" data-page="recurring" style="display:none;">
                 <div class="page-header">
                     <h2>Despesas Recorrentes</h2>
                     <button onclick="abrirModalDespesa()" class="fab-button">
                         <i class="fas fa-plus"></i>
                     </button>
                 </div>
-                <div id="lista-despesas"></div>
+                <div class="resumo-despesas">
+                    <div class="card">
+                        <h3>Total Despesas Recorrentes</h3>
+                        <p class="valor" id="totalDespesasRecorrentes">R$ 0,00</p>
+                    </div>
+                    <div class="card">
+                        <h3>Total Saídas do Mês</h3>
+                        <p class="valor" id="totalSaidasMes">R$ 0,00</p>
+                    </div>
+                </div>
+                <div class="secao-despesas">
+                    <h3>Despesas Recorrentes</h3>
+                    <div id="lista-despesas"></div>
+                </div>
+                <div class="secao-despesas">
+                    <h3>Saídas do Mês</h3>
+                    <div id="lista-saidas"></div>
+                </div>
             </div>
         </main>
 
@@ -138,19 +162,15 @@
                     <button type="submit" class="btn-salvar">Salvar</button>
                 </form>
             </div>
-        </div>
-
-        <!-- Modal para nova meta -->
+        </div>        <!-- Modal para nova meta -->
         <div id="modal-meta" class="modal">
             <div class="modal-content">
                 <div class="modal-drag-indicator"></div>
                 <button class="fechar">&times;</button>
-                <h2>Nova Meta Mensal</h2>
+                <h2>Nova Meta de Economia</h2>
                 <form id="form-meta">
-                    <select id="categoria-meta" required>
-                        <option value="">Selecione uma categoria</option>
-                    </select>
-                    <input type="number" id="valor-limite" placeholder="Valor Limite" step="0.01" required>
+                    <input type="number" id="valor-economia" placeholder="Quanto deseja economizar?" step="0.01" required>
+                    <textarea id="objetivo-meta" placeholder="Qual seu objetivo? (Ex: Comprar um carro, Viagem, etc)" required></textarea>
                     <input type="month" id="mes-referencia" required>
                     <button type="submit" class="btn-salvar">Salvar Meta</button>
                 </form>
@@ -174,9 +194,7 @@
                 </form>
             </div>
         </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    </div>    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="js/script.js"></script>
 </body>
 </html>

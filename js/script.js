@@ -208,6 +208,11 @@ function formatarData(data) {
     });
 }
 
+function formatarDataMes(data) {
+    const dt = new Date(data);
+    return dt.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+}
+
 function confirmarLimparDados() {
     if (confirm('Tem certeza que deseja limpar todos os dados? Esta ação não pode ser desfeita.')) {
         fetch('api/limpar_dados.php', {
@@ -489,11 +494,34 @@ function atualizarDashboard() {    fetch('api/dados_dashboard.php')
 
 document.getElementById('form-meta').onsubmit = function(e) {
     e.preventDefault();
+    
+    // Validação dos campos
+    const valorEconomia = document.getElementById('valor-economia').value;
+    const objetivo = document.getElementById('objetivo-meta').value;
+    const mesReferencia = document.getElementById('mes-referencia').value;
+    
+    if (!valorEconomia || valorEconomia <= 0) {
+        alert('Por favor, insira um valor válido para a meta de economia');
+        return;
+    }
+    
+    if (!objetivo) {
+        alert('Por favor, insira um objetivo para sua meta');
+        return;
+    }
+    
+    if (!mesReferencia) {
+        alert('Por favor, selecione o mês de referência');
+        return;
+    }
+    
     const dados = {
-        valor_economia: document.getElementById('valor-economia').value,
-        objetivo: document.getElementById('objetivo-meta').value,
-        mes_referencia: document.getElementById('mes-referencia').value + '-01'
+        valor_economia: valorEconomia,
+        objetivo: objetivo,
+        mes_referencia: mesReferencia + '-01'
     };
+
+    console.log('Enviando dados da meta:', dados);
 
     fetch('api/salvar_meta.php', {
         method: 'POST',
@@ -502,13 +530,26 @@ document.getElementById('form-meta').onsubmit = function(e) {
         },
         body: JSON.stringify(dados)
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Erro na resposta do servidor');
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('Resposta do servidor:', data);
         if (data.sucesso) {
             document.getElementById('modal-meta').style.display = 'none';
             document.getElementById('form-meta').reset();
             carregarMetas();
+            alert('Meta criada com sucesso!');
+        } else {
+            alert(data.erro || 'Erro ao salvar a meta. Tente novamente.');
         }
+    })
+    .catch(error => {
+        console.error('Erro ao salvar meta:', error);
+        alert('Erro ao salvar a meta. Verifique o console para mais detalhes.');
     });
 };
 
